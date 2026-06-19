@@ -274,19 +274,21 @@ function loadFromStorage(){
 
 const _savedData=loadFromStorage();
 
+const _sd=_savedData||{}; // objeto seguro, nunca null, evita erro de leitura de propriedade
+
 let S={
   view:"login",
-  empresaId:(_savedData&&_savedData.empresaId)||"e1",
-  qrImage:(_savedData&&_savedData.qrImage)!==undefined?_savedData.qrImage:QR_DEFAULT,
-  users:(_savedData&&_savedData.users)||[
+  empresaId:_sd.empresaId||"e1",
+  qrImage:(_sd.qrImage!==undefined&&_sd.qrImage!==null)?_sd.qrImage:QR_DEFAULT,
+  users:_sd.users||[
     {id:1,name:"Lucas",username:"lucas",password:"lucas123",role:"admin",canEdit:true},
     {id:2,name:"Usuário Padrão",username:"user",password:"user123",role:"user",canEdit:false}
   ],
   me:null,
-  docs:(_savedData&&_savedData.docs)||[],
-  clients:(_savedData&&_savedData.clients)||[],
+  docs:_sd.docs||[],
+  clients:_sd.clients||[],
   doc:null,
-  nextN:(_savedData&&_savedData.nextN&&typeof _savedData.nextN==="object")?_savedData.nextN:{orc:1,os:1},
+  nextN:(_sd.nextN&&typeof _sd.nextN==="object")?_sd.nextN:{orc:1,os:1},
   filter:"all",wizardStep:1,
   modal:null,suggest:null,suggestDone:false,toast:""
 };
@@ -1474,7 +1476,22 @@ function bindWizard(){
 
 // Post-render hook for wizard
 const _RE_orig=RE;
-RE=function(){_RE_orig();if(S.view==="wizard")bindWizard();};
+RE=function(){
+  try{
+    _RE_orig();
+    if(S.view==="wizard")bindWizard();
+  }catch(err){
+    console.error("Erro ao renderizar:",err);
+    document.getElementById("R").innerHTML=
+      '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0F1C3F;padding:20px;">'+
+      '<div style="background:#fff;border-radius:12px;padding:30px;max-width:380px;text-align:center;">'+
+      '<div style="font-size:40px;margin-bottom:10px;">⚠️</div>'+
+      '<div style="font-weight:700;color:#1A2B5A;margin-bottom:10px;">Erro ao carregar o app</div>'+
+      '<div style="font-size:13px;color:#5a6480;margin-bottom:18px;">Os dados salvos podem estar corrompidos. Você pode limpar os dados e recomeçar (isso apaga documentos salvos neste navegador).</div>'+
+      '<button onclick="localStorage.removeItem(\'eletroTupi_data_v1\');location.reload();" style="background:#c0390a;color:#fff;border:none;border-radius:7px;padding:10px 20px;font-weight:700;cursor:pointer;width:100%;">Limpar dados e recomeçar</button>'+
+      '</div></div>';
+  }
+};
 RE();
 </script>
 </body>
