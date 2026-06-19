@@ -285,24 +285,26 @@ async function cloudSave(){
   if(json===_lastSyncedJSON)return; // nada mudou desde o último envio
   _syncInFlight=true;
   try{
-    const r=await supaFetch("app_data?id=eq."+SUPABASE_ROW_ID,{
-      method:"PATCH",
-      headers:{"Prefer":"return=minimal"},
-      body:JSON.stringify({data:payload,updated_at:new Date().toISOString()})
+    // UPSERT: usa o header Prefer:resolution=merge-duplicates para criar OU atualizar a linha id=1 em uma única chamada
+    const r=await supaFetch("app_data",{
+      method:"POST",
+      headers:{
+        "Prefer":"resolution=merge-duplicates,return=representation"
+      },
+      body:JSON.stringify({id:SUPABASE_ROW_ID,data:payload,updated_at:new Date().toISOString()})
     });
-    if(r.ok){_lastSyncedJSON=json;updateSyncBadge("ok");}
-    else{
-      // se a linha não existir ainda, cria
-      const r2=await supaFetch("app_data",{
-        method:"POST",
-        headers:{"Prefer":"return=minimal"},
-        body:JSON.stringify({id:SUPABASE_ROW_ID,data:payload,updated_at:new Date().toISOString()})
-      });
-      if(r2.ok){_lastSyncedJSON=json;updateSyncBadge("ok");}
-      else updateSyncBadge("erro");
+    if(r.ok){
+      const body=await r.json().catch(()=>null);
+      console.log("Sincronizado com sucesso:",body);
+      _lastSyncedJSON=json;
+      updateSyncBadge("ok");
+    } else {
+      const errText=await r.text().catch(()=>"");
+      console.error("Erro ao salvar na nuvem. Status:",r.status,"Resposta:",errText);
+      updateSyncBadge("erro");
     }
   }catch(e){
-    console.error("Erro ao sincronizar com a nuvem:",e);
+    console.error("Erro de rede ao sincronizar com a nuvem:",e);
     updateSyncBadge("offline");
   }finally{
     _syncInFlight=false;
